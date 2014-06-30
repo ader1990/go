@@ -6,6 +6,7 @@ package net
 
 import (
 	"errors"
+	"npipe"
 	"time"
 )
 
@@ -74,6 +75,7 @@ func parseNetwork(net string) (afnet string, proto int, err error) {
 		case "udp", "udp4", "udp6":
 		case "ip", "ip4", "ip6":
 		case "unix", "unixgram", "unixpacket":
+		case "pipe":
 		default:
 			return "", 0, UnknownNetworkError(net)
 		}
@@ -106,6 +108,8 @@ func resolveAddr(op, net, addr string, deadline time.Time) (netaddr, error) {
 	switch afnet {
 	case "unix", "unixgram", "unixpacket":
 		return ResolveUnixAddr(afnet, addr)
+	case "pipe":
+		return addr, nil
 	}
 	return resolveInternetAddr(afnet, addr, deadline)
 }
@@ -114,8 +118,8 @@ func resolveAddr(op, net, addr string, deadline time.Time) (netaddr, error) {
 //
 // Known networks are "tcp", "tcp4" (IPv4-only), "tcp6" (IPv6-only),
 // "udp", "udp4" (IPv4-only), "udp6" (IPv6-only), "ip", "ip4"
-// (IPv4-only), "ip6" (IPv6-only), "unix", "unixgram" and
-// "unixpacket".
+// (IPv4-only), "ip6" (IPv6-only), "unix", "unixgram", "unixpacket",
+// and "pipe".
 //
 // For TCP and UDP networks, addresses have the form host:port.
 // If host is a literal IPv6 address or host name, it must be enclosed
@@ -269,6 +273,8 @@ func Listen(net, laddr string) (Listener, error) {
 		l, err = ListenTCP(net, la)
 	case *UnixAddr:
 		l, err = ListenUnix(net, la)
+	case *PipeAddr:
+		l, err = npipe.Listen(la)
 	default:
 		return nil, &OpError{Op: "listen", Net: net, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: laddr}}
 	}
@@ -295,6 +301,8 @@ func ListenPacket(net, laddr string) (PacketConn, error) {
 		l, err = ListenIP(net, la)
 	case *UnixAddr:
 		l, err = ListenUnixgram(net, la)
+	case *PipeAddr:
+		l, err = npipe.Listen(la)
 	default:
 		return nil, &OpError{Op: "listen", Net: net, Addr: la, Err: &AddrError{Err: "unexpected address type", Addr: laddr}}
 	}
